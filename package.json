@@ -1,4 +1,15 @@
 {
+  "name": "opengym-vercel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal KV-backed openGym backend + frontend, deployable on Vercel",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.3"
+  },
   "devDependencies": {
     "js-yaml": "^4.1.0"
   }

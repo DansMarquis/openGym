@@ -18,7 +18,7 @@ import { isWarmupRow } from './workout-model.js'
 import { best1RM } from './onerm.js'
 import { fmtNum } from './format.js'
 import { planHash } from './coach.js'
-import { waitingProposal } from '../../../api/coach/core/pending.js'
+import { waitingProposal } from '../../../_legacy-backend/coach/core/pending.js'
 import { t } from './i18n.js'
 
 const DELAY = 2200      // long enough to see "the Coach is thinking…", short enough to forgive
