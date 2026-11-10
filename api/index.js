@@ -1,6 +1,12 @@
-// Minimal openGym backend for Vercel — a single catch-all Serverless Function that answers the
-// handful of endpoints the existing frontend needs to sign in and sync workouts, backed by
-// Upstash Redis instead of openGym's on-disk JSON documents.
+// Minimal openGym backend for Vercel — a single Serverless Function that answers the handful of
+// endpoints the existing frontend needs to sign in and sync workouts, backed by Upstash Redis
+// instead of openGym's on-disk JSON documents.
+//
+// All /api/* paths (any depth) are routed here by a rewrite in vercel.json:
+//   { "source": "/api/:path*", "destination": "/api/index?__p=:path*" }
+// The original path is reconstructed from the `__p` query param (with a fallback to req.url), so a
+// single function can dispatch every route regardless of nesting — avoiding Vercel's catch-all
+// filename quirks.
 //
 // Implemented, matching openGym's request/response contract:
 //   GET  /api/health          GET  /api/config         GET  /api/me
@@ -14,7 +20,7 @@
 // pairing. Calls to those return 501 so the frontend degrades instead of hanging.
 import crypto from 'node:crypto';
 import { db } from './_lib/db.js';
-import { json, readBody, pathOf, str } from './_lib/http.js';
+import { json, readBody, pathOf, queryOf, str } from './_lib/http.js';
 import {
   readSession, makeSession, sessionVersion, sessionCookie, clearCookie, publicUser,
 } from './_lib/session.js';
@@ -29,6 +35,14 @@ const WID_KEEP = 20;
 const WRONG = { error: 'wrong name or password', code: 'bad-credentials' };
 
 const nameKey = s => str(s).trim().toLowerCase().slice(0, 300);
+
+// The requested /api path. The rewrite forwards it in `__p` (segments after /api/); fall back to
+// the raw URL for direct hits.
+function apiPath(req) {
+  const forwarded = queryOf(req).get('__p');
+  if (forwarded != null) return ('/api/' + forwarded).replace(/\/+$/, '') || '/api';
+  return pathOf(req);
+}
 
 // Reject a state-changing request whose browser Origin isn't ours. A same-origin fetch from the
 // deployed app always matches; a request with no Origin header (non-browser) is allowed through.
@@ -54,15 +68,12 @@ async function health(req, res) {
 }
 
 async function config(req, res) {
-  const user = await readSession(req, db.getUser);
+  await readSession(req, db.getUser); // touch session; config itself is public
   json(res, 200, {
     invite_only: INVITE_ONLY,
     allow_guest: ALLOW_GUEST,
     ...(PASSWORD_LOGIN ? { password_login: true } : {}),
     ...(DEFAULT_LANG ? { default_lang: DEFAULT_LANG } : {}),
-    // Signed-in callers get an explicit (empty) coach block absence; openGym omits coach unless
-    // configured, and this build never configures it.
-    ...(user ? {} : {}),
   });
 }
 
@@ -204,19 +215,19 @@ const routes = {
 };
 
 export default async function handler(req, res) {
+  const path = apiPath(req);
   try {
     if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
     if (!csrfOk(req)) return json(res, 403, { error: 'bad origin', code: 'csrf' });
 
-    const key = req.method + ' ' + pathOf(req);
-    const route = routes[key];
+    const route = routes[req.method + ' ' + path];
     if (route) return await route(req, res);
 
     // Any other /api/* path: a feature this minimal build doesn't carry.
-    if (pathOf(req).startsWith('/api/')) return notImplemented(req, res);
+    if (path.startsWith('/api/')) return notImplemented(req, res);
     return json(res, 404, { error: 'not found' });
   } catch (e) {
-    console.error('api error', req.method, pathOf(req), e?.message);
+    console.error('api error', req.method, path, e?.message);
     const msg = /KV not configured|SECRET not configured/.test(e?.message || '')
       ? e.message
       : 'internal error';
