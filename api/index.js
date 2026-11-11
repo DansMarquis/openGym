@@ -37,6 +37,7 @@ const DEFAULT_LANG = process.env.DEFAULT_LANG || '';
 const ORIGIN = process.env.ORIGIN || '';
 const WID_KEEP = 20;
 const WRONG = { error: 'wrong name or password', code: 'bad-credentials' };
+const NATIVE_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 
 const nameKey = s => str(s).trim().toLowerCase().slice(0, 300);
 const PAIR_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -50,13 +51,23 @@ function apiPath(req) {
   return pathOf(req);
 }
 
-// Reject a state-changing request whose browser Origin isn't ours. A same-origin fetch from the
-// deployed app always matches; a request with no Origin header (non-browser) is allowed through.
+function nativeCors(req, res) {
+  const origin = req.headers.origin;
+  if (!NATIVE_ORIGINS.has(origin)) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, CF-Access-Client-Id, CF-Access-Client-Secret');
+  res.setHeader('Vary', 'Origin');
+}
+
+// Reject state-changing browser requests from other sites. Native app origins are separately
+// allowed because the phone authenticates with its one-time pairing code or bearer token.
 function csrfOk(req) {
   const method = req.method;
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return true;
   const origin = req.headers.origin;
   if (!origin) return true;
+  if (NATIVE_ORIGINS.has(origin)) return true;
   if (!ORIGIN) return true; // not configured — don't block
   try { return new URL(origin).host === new URL(ORIGIN).host; } catch { return false; }
 }
@@ -278,6 +289,7 @@ const routes = {
 
 export default async function handler(req, res) {
   const path = apiPath(req);
+  nativeCors(req, res);
   try {
     if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
     if (!csrfOk(req)) return json(res, 403, { error: 'bad origin', code: 'csrf' });

@@ -6,6 +6,13 @@ Web Push, daily motivational quotes and gym-time reminders are supported too.
 Apple Watch and HealthKit still require the native iPhone/Watch apps; they cannot
 be connected directly to this webapp.
 
+The native iPhone and Android apps can pair with this Vercel server using
+**Settings → Account → Pair the mobile app** and the one-time code. The API
+allows cross-origin requests only from the Capacitor app origins
+(`capacitor://localhost` on iOS and `https://localhost` on Android); no extra
+CORS settings are needed on Vercel. Redeploy after pulling an API CORS fix
+before trying to pair again.
+
 ## Free services and limits
 
 Keep Vercel Hobby, the existing free Upstash Redis database, and choose **QStash
