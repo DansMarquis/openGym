@@ -106,8 +106,8 @@ async function createPair(req, res) {
   if (!await verifyPassword(body.current, user.pw.h)) {
     return json(res, 401, { error: 'your current password is not right', code: 'current-wrong' });
   }
-  const raw = [...crypto.randomBytes(12)].map(b => PAIR_ALPHABET[b % PAIR_ALPHABET.length]).join('');
-  const code = raw.match(/.{1,4}/g).join('-');
+  const raw = [...crypto.randomBytes(8)].map(b => PAIR_ALPHABET[b % PAIR_ALPHABET.length]).join('');
+  const code = raw;
   await db.cache('mcp-pair:' + raw, user.id, PAIR_TTL_SECONDS);
   json(res, 200, { code, expires: Date.now() + PAIR_TTL_SECONDS * 1000 });
 }
@@ -115,7 +115,7 @@ async function createPair(req, res) {
 async function redeemPair(req, res) {
   const body = await readBody(req);
   const code = str(body.code).toUpperCase().replaceAll('-', '').trim();
-  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(code)) {
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/.test(code)) {
     return json(res, 400, { error: 'that code is wrong or has expired', code: 'link-invalid' });
   }
   const uid = await db.takeCached('mcp-pair:' + code);

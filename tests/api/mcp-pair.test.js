@@ -46,7 +46,7 @@ test('MCP pairing requires the signed-in profile password and issues a single-us
 
   const created = await request('/api/pair/create', { method: 'POST', body: { current: password }, token });
   assert.equal(created.status, 200);
-  assert.match(created.body.code, /^[A-Z0-9-]{8,20}$/);
+  assert.match(created.body.code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
 
   const redeemed = await request('/api/pair/redeem', { method: 'POST', body: { code: created.body.code } });
   assert.equal(redeemed.status, 200);
