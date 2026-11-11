@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* openGym MCP server — stdio transport. The LLM client (Claude Desktop, Cursor, …) spawns
    this process locally, talks JSON-RPC over stdin/stdout, tears it down when the session ends.
-   No extra container. The read tools make no network call; log_workout, once paired, talks to
-   your own openGym server and nothing else — your data stays in a folder you control. */
+   No extra container. Local reads use the user's data directory; remote reads and writes talk
+   only to the paired openGym server. */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { TOOLS } from './tools.js'
 import { WRITE_TOOLS } from './write-tools.js'
-import { init, getUser } from './state.js'
+import { init, getUser, refreshRemoteState } from './state.js'
 
 const server = new McpServer({
   name: 'opengym',
@@ -19,6 +19,7 @@ const server = new McpServer({
 // handshake, even when state didn't resolve.
 try {
   init()
+  await refreshRemoteState()
   const u = getUser()
   console.error(`[opengym-mcp] serving profile ${u.name} (${u.id})`)
 } catch (e) {
@@ -34,6 +35,7 @@ for (const t of [...TOOLS, ...WRITE_TOOLS]) {
     t.schema,
     async (params) => {
       try {
+        await refreshRemoteState()
         // log_workout talks to the server, so a handler may answer with a promise.
         const result = await t.handler(params || {})
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }

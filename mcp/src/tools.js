@@ -11,7 +11,7 @@ import {
   modeOf, workoutVolume, setsDone, setUnitsTotal, effectiveRoutine, effectiveRoutineIds, lastEntryFor, workoutAt
 } from '../../frontend/src/lib/history.js'
 import { queueView, queueNext, pinState } from '../../frontend/src/lib/queue.js'
-import { exOr, registerCustom } from '../../frontend/src/lib/exercises.js'
+import { EXIDX, exOr, registerCustom } from '../../frontend/src/lib/exercises.js'
 import { isWarmupRow, isFailureSet } from '../../frontend/src/lib/workout-model.js'
 import {
   bestSetOf, best1RM, e1rmSeries, DEFAULT_FORMULA, REP_CAP
@@ -118,6 +118,47 @@ function prTable(S, formula) {
 /* ---------- the 8 tools ---------- */
 
 /** list_routines — names + counts of each routine in the user's plan. */
+export const searchExercises = {
+  name: 'search_exercises',
+  description: 'Find built-in and user-defined exercises by name, body part or equipment. Use the returned exercise id when creating a training plan; if several variants match, choose the one that fits the user’s equipment and preference.',
+  schema: {
+    query: z.string().trim().min(1).max(100),
+    limit: z.number().int().min(1).max(30).optional(),
+  },
+  handler: ({ query, limit = 12 }) => {
+    const S = getState()
+    if (!S) return noState()
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
+    const candidates = [
+      ...Object.values(EXIDX),
+      ...(S.customEx || []).map(ex => ({ id: ex.id, n: ex.n, bp: ex.bp, eq: ex.eq, custom: true })),
+    ]
+    const unique = new Map(candidates.filter(ex => ex?.id && ex?.n).map(ex => [ex.id, ex]))
+    const matches = [...unique.values()].flatMap(ex => {
+      const name = ex.n
+      const text = `${name} ${ex.bp || ''} ${ex.eq || ''} ${ex.id}`.toLowerCase()
+      if (!terms.every(term => text.includes(term))) return []
+      const lowerName = name.toLowerCase()
+      const score = lowerName === query.toLowerCase() ? 0
+        : lowerName.startsWith(query.toLowerCase()) ? 1
+        : terms.every(term => lowerName.includes(term)) ? 2 : 3
+      return [{ ex, score }]
+    }).sort((a, b) => a.score - b.score || a.ex.n.localeCompare(b.ex.n) || a.ex.id.localeCompare(b.ex.id))
+    return {
+      query,
+      count: matches.length,
+      exercises: matches.slice(0, limit).map(({ ex }) => ({
+        id: ex.id,
+        name: ex.n,
+        body_part: ex.bp || null,
+        equipment: ex.eq || null,
+        ...(ex.custom ? { custom: true } : {}),
+      })),
+      truncated: matches.length > limit,
+    }
+  },
+}
+
 export const listRoutines = {
   name: 'list_routines',
   description: 'List the workout routines saved in the user\'s openGym profile (the same list the Plan screen shows). Each routine is a named set of exercises with set/rep targets. Use this to discover the plan structure before diving into a specific routine or today\'s workout.',
@@ -742,7 +783,7 @@ export const getProgramme = {
 }
 
 export const TOOLS = [
-  listRoutines, getRoutine, previewSession, getWeekPlan, listWorkouts, getWorkout, getBodyweight, estimate1rm, muscleBalance, getProgramme
+  searchExercises, listRoutines, getRoutine, previewSession, getWeekPlan, listWorkouts, getWorkout, getBodyweight, estimate1rm, muscleBalance, getProgramme
 ]
 
 function noState() {

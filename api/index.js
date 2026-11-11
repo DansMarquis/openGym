@@ -13,10 +13,12 @@
 //   POST /api/register/password   POST /api/login/password
 //   POST /api/logout          POST /api/logout/all
 //   GET  /api/data            GET  /api/data/rev       PUT  /api/data
+//   GET  /api/account/passkeys   POST /api/pair/create   POST /api/pair/redeem
 //
 // Web Push and gym-time reminders use Redis plus QStash Free (docs/VERCEL.md).
+// The optional MCP bridge and mobile pairing use short-lived, password-confirmed pairing codes.
 // Passkeys/WebAuthn, the Coach, media upload, third-party integrations, the watch relay, nudges,
-// admin tooling and device pairing are not implemented in this minimal backend.
+// and admin tooling are not implemented in this minimal backend.
 import crypto from 'node:crypto';
 import { db } from './_lib/db.js';
 import { json, readBody, pathOf, queryOf, str } from './_lib/http.js';
@@ -37,6 +39,8 @@ const WID_KEEP = 20;
 const WRONG = { error: 'wrong name or password', code: 'bad-credentials' };
 
 const nameKey = s => str(s).trim().toLowerCase().slice(0, 300);
+const PAIR_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const PAIR_TTL_SECONDS = 5 * 60;
 
 // The requested /api path. The rewrite forwards it in `__p` (segments after /api/); fall back to
 // the raw URL for direct hits.
@@ -86,6 +90,38 @@ async function me(req, res) {
   const user = await readSession(req, db.getUser);
   if (!user) return json(res, 401, { error: 'not signed in' });
   json(res, 200, { user: publicUser(user) });
+}
+
+async function accountPasskeys(req, res) {
+  const user = await readSession(req, db.getUser);
+  if (!user) return json(res, 401, { error: 'not signed in' });
+  json(res, 200, { passkeys: [], password: !!user.pw?.h, lastWayIn: true });
+}
+
+async function createPair(req, res) {
+  const user = await readSession(req, db.getUser);
+  if (!user) return json(res, 401, { error: 'not signed in' });
+  const body = await readBody(req);
+  if (!user.pw?.h) return json(res, 403, { error: 'this profile cannot confirm pairing with a password', code: 'passkey-required' });
+  if (!await verifyPassword(body.current, user.pw.h)) {
+    return json(res, 401, { error: 'your current password is not right', code: 'current-wrong' });
+  }
+  const raw = [...crypto.randomBytes(12)].map(b => PAIR_ALPHABET[b % PAIR_ALPHABET.length]).join('');
+  const code = raw.match(/.{1,4}/g).join('-');
+  await db.cache('mcp-pair:' + raw, user.id, PAIR_TTL_SECONDS);
+  json(res, 200, { code, expires: Date.now() + PAIR_TTL_SECONDS * 1000 });
+}
+
+async function redeemPair(req, res) {
+  const body = await readBody(req);
+  const code = str(body.code).toUpperCase().replaceAll('-', '').trim();
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(code)) {
+    return json(res, 400, { error: 'that code is wrong or has expired', code: 'link-invalid' });
+  }
+  const uid = await db.takeCached('mcp-pair:' + code);
+  const user = uid ? await db.getUser(uid) : null;
+  if (!user || user.disabled) return json(res, 400, { error: 'that code is wrong or has expired', code: 'link-invalid' });
+  json(res, 200, { token: makeSession(user, 'p'), user: publicUser(user) });
 }
 
 async function registerPassword(req, res) {
@@ -227,6 +263,9 @@ const routes = {
   'GET /api/health': health,
   'GET /api/config': config,
   'GET /api/me': me,
+  'GET /api/account/passkeys': accountPasskeys,
+  'POST /api/pair/create': createPair,
+  'POST /api/pair/redeem': redeemPair,
   'POST /api/register/password': registerPassword,
   'POST /api/login/password': loginPassword,
   'POST /api/logout': logout,

@@ -37,6 +37,17 @@ function freshState() {
   return s
 }
 
+describe('search_exercises', () => {
+  test('returns matching library ids that can be used to build a plan', () => {
+    const r = call('search_exercises', { query: 'sled 45° leg press' })
+    expect(r.exercises.some(x => x.id === LEG_PRESS_ID)).toBe(true)
+    expect(r.exercises.find(x => x.id === LEG_PRESS_ID)).toMatchObject({
+      name: expect.any(String),
+      body_part: expect.any(String),
+    })
+  })
+})
+
 // Pin "today" before building state so dayPlan/week alignment matches the assertions below.
 // `toFake: ['Date']` only — keeps fs.watch and the rest of the event loop real.
 // Local noon, not UTC noon: the demo seed's evening check reads local hours, and UTC noon is

@@ -26,6 +26,12 @@ function memoryClient() {
   };
   return {
     async get(k) { return get(k); },
+    async getdel(k) {
+      const value = get(k);
+      m.delete(k);
+      expires.delete(k);
+      return value;
+    },
     async set(k, v, opts) {
       if (opts?.nx && get(k) != null) return null;
       m.set(k, v);
@@ -130,6 +136,9 @@ export const db = {
   },
   async cache(key, value, seconds) {
     await redis().set('gym:cache:' + key, value, { ex: seconds });
+  },
+  async takeCached(key) {
+    return await redis().getdel('gym:cache:' + key);
   },
   async once(key, seconds) {
     return !!(await redis().set('gym:once:' + key, '1', { nx: true, ex: seconds }));

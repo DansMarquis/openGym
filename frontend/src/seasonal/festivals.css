@@ -1,9 +1,57 @@
-.festival-layer { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
-.festival-particle { position: absolute; top: -70px; width: 28px; opacity: 0; animation: festival-fall var(--duration) linear var(--delay) 2; }
+.festival-layer { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; color: var(--festival-ink); }
+.festival-layer svg { display: block; overflow: visible; }
+.festival-particle { position: absolute; top: -70px; width: 28px; height: 34px; opacity: 0; animation: festival-fall var(--duration) linear var(--delay) 2; }
 .festival-particle svg, .festival-deco svg { display: block; width: 100%; height: 100%; }
-.festival-santos .festival-particle { width: 36px; animation-name: festival-rise; top: auto; bottom: -70px; }
-.festival-newyear .festival-particle { width: 70px; animation: festival-burst 4s ease-out var(--delay) 2; }
+.festival-santos .festival-particle { width: 36px; height: 52px; animation-name: festival-rise; top: auto; bottom: -70px; }
+.festival-newyear .festival-particle { width: 70px; height: 70px; animation: festival-burst 4s ease-out var(--delay) 2; }
 .festival-bunting { position: absolute; top: env(safe-area-inset-top, 0); width: 100%; height: 35px; opacity: .6; }
+.festival-santos .festival-bunting,.festival-carnival .festival-bunting { color: var(--festival-ink); }
+:root:is([data-season="santos"],[data-season="autumn"],[data-season="newyear"],[data-season="carnival"]) body { background: transparent; }
+:root[data-season="santos"] { --festival-ink: #e49c37; }
+:root[data-season="autumn"] { --festival-ink: #c96428; }
+:root[data-season="newyear"] { --festival-ink: #e8bc4e; }
+:root[data-season="carnival"] { --festival-ink: #e84d8a; }
+:root[data-season="autumn"][data-theme="light"] { --festival-ink: #9d4d2e; }
+:root[data-season="newyear"][data-theme="light"] { --festival-ink: #a87c18; }
+:root[data-season="carnival"][data-theme="light"] { --festival-ink: #b52e65; }
+[data-season="santos"] .hdr:has(> .festival-header),
+[data-season="autumn"] .hdr:has(> .festival-header),
+[data-season="newyear"] .hdr:has(> .festival-header),
+[data-season="carnival"] .hdr:has(> .festival-header) { position: relative; }
+.festival-header { position: absolute; inset: -6px 0 -4px; display: flex; justify-content: space-around; overflow: hidden; opacity: .58; pointer-events: none; }
+.festival-header svg { width: 24px; height: 30px; }
+[data-season] .hdr:has(> .festival-header) > :not(.festival-header) { position: relative; z-index: 1; }
+.festival-card-deco { position: absolute; z-index: -1; pointer-events: none; }
+.festival-card-deco svg,.festival-hat svg,.festival-finish svg { display: block; }
+:is(.card, .sect-b, .tile):has(> .festival-card-deco) { position: relative; isolation: isolate; }
+.festival-corner { width: 38px; height: 40px; opacity: .62; }
+.festival-corner-br { right: 4px; bottom: 4px; transform: scaleX(-1) rotate(-8deg); }
+.festival-corner-tr { right: 4px; top: 4px; transform: scaleX(-1); }
+.festival-corner-bl { left: 4px; bottom: 4px; transform: rotate(-8deg); }
+[dir="rtl"] .festival-corner-br { right: auto; left: 4px; transform: rotate(-8deg); }
+[dir="rtl"] .festival-corner-bl { left: auto; right: 4px; transform: scaleX(-1) rotate(-8deg); }
+.festival-peek { bottom: 100%; inset-inline-end: 48px; display: flex; width: 36px; height: 24px; overflow: hidden; }
+.festival-peek svg { width: 100%; height: 100%; animation: festival-pop .65s cubic-bezier(.3,1.5,.5,1) .25s both; }
+.festival-peek-pair { inset-inline-end: 40px; width: 58px; }
+.festival-peek-pair svg { width: 30px; }
+.festival-hang { top: -2px; inset-inline-end: 22px; display: flex; gap: 5px; width: 48px; height: 38px; transform-origin: top center; animation: festival-sway 3s ease-in-out 4 alternate; }
+.festival-hang svg { width: 22px; height: 32px; }
+.festival-hang-single { inset-inline-end: 36px; width: 26px; }
+.festival-hat { position: absolute; top: -9px; inset-inline-start: 2px; width: 19px; height: 17px; pointer-events: none; transform: rotate(-14deg); }
+.festival-hat svg { width: 100%; height: 100%; }
+.festival-workout-corner { top: 0; inset-inline-start: 0; width: 30px; height: 34px; }
+.festival-workout-corner svg { width: 100%; height: 100%; }
+.whdr:has(> .festival-workout-corner) { isolation: isolate; }
+.whdr:not(.stick):has(> .festival-workout-corner) { position: relative; }
+.festival-rest { position: absolute; z-index: -1; top: 3px; inset-inline: 0; height: 12px; display: flex; justify-content: space-around; pointer-events: none; }
+.festival-rest svg { width: 12px; height: 12px; opacity: 0; animation: festival-drift 5s ease-in-out var(--delay, 0s) 1 both; }
+.festival-rest svg:nth-child(2) { --delay: 1.4s; }
+.festival-rest svg:nth-child(3) { --delay: 2.8s; }
+.festival-finish { display: inline-flex; gap: 2px; width: 44px; height: 34px; pointer-events: none; }
+.festival-finish svg { width: 22px; height: 32px; animation: festival-pop .65s cubic-bezier(.3,1.5,.5,1) .15s both; }
+@keyframes festival-pop { from { opacity: 0; transform: translateY(14px) scale(.7); } to { opacity: .78; transform: none; } }
+@keyframes festival-sway { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@keyframes festival-drift { 0%, 100% { opacity: 0; transform: translateY(8px) rotate(0); } 30%, 70% { opacity: .55; } 50% { transform: translateY(-2px) rotate(18deg); } }
 .festival-deco { display: inline-block; width: 28px; height: 34px; pointer-events: none; }
 @keyframes festival-fall {
   0% { opacity: 0; transform: translate3d(0, -40px, 0) rotate(0); }
@@ -22,4 +70,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .festival-particle { display: none; animation: none; }
+  .festival-peek svg, .festival-hang, .festival-rest svg, .festival-finish svg { animation: none; }
+  .festival-rest svg { opacity: .45; }
 }

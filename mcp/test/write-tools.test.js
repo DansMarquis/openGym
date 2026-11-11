@@ -3,7 +3,7 @@
 // with the write is log-workout.e2e.test.js; the arithmetic is frontend/src/lib/log-workout.test.js.
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 import http from 'node:http'
-import { logWorkout, WRITE_LIMIT, _resetWriteWindow } from '../src/write-tools.js'
+import { logWorkout, createTrainingPlan, WRITE_LIMIT, _resetWriteWindow } from '../src/write-tools.js'
 import { apiBase, apiConfig } from '../src/api-client.js'
 import { _seedStateForTests } from '../src/state.js'
 
@@ -48,7 +48,7 @@ const DOC = () => ({ unit: 'kg', workouts: [], routines: [{ id: 'r1', name: 'Pus
 const CURLS = { exercises: [{ exercise: 'dumbbell curl', sets: [{ reps: 12, weight: 12 }, { reps: 12, weight: 12 }, { reps: 10, weight: 12, failure: true }] }] }
 const call = (params, env = api.env) => logWorkout.handler(params, { env })
 
-describe('log_workout writes through the server', () => {
+describe('MCP write tools write through the server', () => {
   beforeEach(async () => { api = await stubApi(DOC()) })
 
   test('the document the server sent, plus the workout, with the revision and write id it was read at', async () => {
@@ -70,6 +70,58 @@ describe('log_workout writes through the server', () => {
     expect(workouts).toHaveLength(1)
     expect(_ts).toBeGreaterThan(t0)
     expect(r.revision).toBe(8)
+  })
+
+  describe('create_training_plan writes through the server', () => {
+    beforeEach(async () => { api = await stubApi(DOC()) })
+
+    test('previews without writing, then saves new routines only after confirmation', async () => {
+      const plan = {
+        name: 'Four-week strength plan',
+        routines: [{
+          name: 'Upper body',
+          exercises: [{ exercise_id: '0025', sets: 3, reps: 8, weight: 60 }],
+        }],
+      }
+
+      const preview = await createTrainingPlan.handler(plan, { env: api.env })
+      expect(preview).toMatchObject({
+        saved: false,
+        requires_confirmation: true,
+        plan_name: 'Four-week strength plan',
+        unit: 'kg',
+        routines: [{
+          name: 'Upper body',
+          exercises: [{ exercise_id: '0025', sets: 3, reps: 8, weight: 60 }],
+        }],
+      })
+      expect(preview.confirmation_id).toBeTruthy()
+      expect(api.puts).toHaveLength(0)
+
+      const saved = await createTrainingPlan.handler({
+        confirmation_id: preview.confirmation_id,
+        confirm: true,
+      }, { env: api.env })
+
+      expect(saved).toMatchObject({ saved: true, plan_name: 'Four-week strength plan' })
+      expect(api.doc.routines).toHaveLength(2)
+      expect(api.doc.routines[0]).toEqual(DOC().routines[0])
+      expect(api.doc.routines[1]).toMatchObject({
+        name: 'Upper body',
+        ex: [{ id: '0025', sets: 3, reps: 8, weight: 60 }],
+      })
+      expect(api.doc.week).toBeUndefined()
+      expect(api.doc.edited).toEqual({ restSec: 5 })
+      expect(api.puts).toHaveLength(1)
+    })
+
+    test('a plan with an unknown exercise is not offered for confirmation', async () => {
+      await expect(createTrainingPlan.handler({
+        name: 'Invalid plan',
+        routines: [{ name: 'Upper body', exercises: [{ exercise_id: 'not-an-exercise', sets: 3, reps: 8 }] }],
+      }, { env: api.env })).rejects.toMatchObject({ code: 'EINVAL' })
+      expect(api.puts).toHaveLength(0)
+    })
   })
 
   test('dry_run builds the preview and writes nothing', async () => {

@@ -31,7 +31,7 @@ it('lets the user choose training days and warns when the gym is closed', async 
   click('Monday: Choose training times')
   expect(host.textContent).not.toContain('Outside gym opening hours.')
   click('Choose training times')
-  expect(host.querySelector('input[type="time"]')).toBeNull()
+  expect(host.querySelector('[aria-label="Monday: Training times"]')).toBeNull()
 })
 
 it('adds and removes opening periods without discarding a legacy day or changing other days', async () => {

@@ -305,6 +305,13 @@ describe('the search query', () => {
 })
 
 describe('the pages', () => {
+  it('shows training times and gym opening hours on Plan & schedule for the Vercel web app', () => {
+    mocks.config = { web_push: true, scheduled_reminders: true }
+    mount('plan')
+    expect(host.textContent).toContain('Training times')
+    expect(host.textContent).toContain('Gym opening hours')
+    expect(host.textContent).not.toContain('Push notifications')
+  })
   it('each search entry is a row on its page (guest in a browser)', () => {
     const byPage = {}
     for (const e of SEARCH) if (pageVisible(PAGES[e.page].parent || e.page, guestWeb) && (!e.when || e.when(guestWeb))) (byPage[e.page] ||= []).push(e.title)

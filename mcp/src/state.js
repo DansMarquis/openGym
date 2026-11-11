@@ -1,9 +1,9 @@
-/* opengym-mcp state — reads ./data/state-<uid>.json + db.json (read-only). Cached with an
-   fs.watch + mtime fallback so a session the api server just wrote is visible on the next
-   tool call without a restart. */
+/* opengym-mcp state — reads local ./data files or refreshes a paired remote profile before each
+   tool call. Local files are cached with an fs.watch + mtime fallback. */
 import fs from 'node:fs'
 import path from 'node:path'
 import { applyExerciseMerges } from '../../frontend/src/lib/exercise-merge.js'
+import { apiConfig, apiFetch } from './api-client.js'
 
 const DATA_DIR = process.env.OPENGYM_DATA || path.join(process.cwd(), 'data')
 // Whether a data directory was asked for, as opposed to the ./data guess.
@@ -16,6 +16,7 @@ let _uid = null
 let _watcher = null
 let _loadedMtime = 0    // mtimeMs we last read at — used to catch watcher omissions
 let _seeded = false     // a test's in-memory state, never compared with the disk
+let _remote = false
 
 // null means one thing only: the file is not there (an account that never synced from a device).
 // Every other failure — no permission on the mount, a truncated or corrupt file — is a real fault,
@@ -87,7 +88,13 @@ function ambiguousUid(ids) {
 
 // Idempotent. Picks the uid, loads db.json, attaches the watcher, primes state.
 export function init() {
-  if (_uid !== null) return
+  if (_uid !== null || _remote) return
+  if (process.env.OPENGYM_REMOTE === '1') {
+    if (DATA_SET) throw new Error('OPENGYM_REMOTE=1 cannot be used with OPENGYM_DATA; remove OPENGYM_DATA for remote mode')
+    apiConfig(process.env)
+    _remote = true
+    return
+  }
   if (!fs.existsSync(DATA_DIR)) throw new Error(`OPENGYM_DATA dir does not exist: ${DATA_DIR}`)
   _uid = resolveUid()
   reloadDb()
@@ -116,9 +123,44 @@ export function init() {
   } catch { /* fs.watch unsupported on this platform; tools will re-read on mtime change */ }
 }
 
+// Refreshes the remote snapshot before each MCP tool call, so reads see the same Vercel profile
+// that writes use rather than a copy from when Claude Desktop started.
+export async function refreshRemoteState({ env = process.env, fetchImpl } = {}) {
+  init()
+  if (!_remote) return
+  const cfg = apiConfig(env)
+  const opts = fetchImpl ? { fetchImpl } : {}
+  const me = await apiFetch(cfg, '/api/me', opts)
+  const u = me.body?.user
+  if (typeof u?.id !== 'string' || !u.id) {
+    const err = new Error('the openGym server did not say which profile OPENGYM_TOKEN belongs to (GET /api/me)')
+    err.code = 'EAPI'
+    throw err
+  }
+  const data = await apiFetch(cfg, '/api/data', opts)
+  const stored = data.body?.state
+  if (stored != null && (typeof stored !== 'object' || Array.isArray(stored))) {
+    const err = new Error('the openGym server returned an invalid state document')
+    err.code = 'EAPI'
+    throw err
+  }
+  _uid = u.id
+  _db = { users: [{ id: u.id, name: u.name || 'Profile', created: null }], creds: [], subs: [], invites: [] }
+  _state = stored ? shaped(stored) : null
+  _loadedMtime = 0
+}
+
 // Returns the state object, or null for a fresh account that never signed in on a device.
 export function getState() {
   init()
+  if (_remote) {
+    if (_state === undefined) {
+      const err = new Error('remote profile has not been loaded yet; retry this tool call')
+      err.code = 'EAPI'
+      throw err
+    }
+    return _state
+  }
   const file = stateFile(_uid)
   // Re-read if the file's mtime changed since our last load — covers watcher omissions and
   // platforms with no fs.watch.
@@ -149,6 +191,11 @@ export function getState() {
 // Returns the user record (id + name). No passkey material, no VAPID keys, no push subs.
 export function getUser() {
   init()
+  if (_remote && !_db) {
+    const err = new Error('remote profile has not been loaded yet; retry this tool call')
+    err.code = 'EAPI'
+    throw err
+  }
   const u = _db.users.find(x => x.id === _uid) || { id: _uid, name: 'Profile', created: null }
   return { id: u.id, name: u.name, created: u.created || null }
 }
@@ -162,6 +209,7 @@ export const dataDir = () => DATA_DIR
 // several profiles, throws: a broken mount is no licence to write to whichever profile the token is.
 export function localUid() {
   if (_uid !== null) return _uid
+  if (_remote || process.env.OPENGYM_REMOTE === '1') return null
   const envUid = (process.env.OPENGYM_UID || '').trim()
   if (envUid) return envUid
   if (!DATA_SET && !fs.existsSync(DATA_DIR)) return null
@@ -178,6 +226,7 @@ export function invalidate() {
 
 // Test-only: work against a passed-in state, not the disk.
 export function _seedStateForTests(state) {
+  _remote = false
   _uid = 'test-uid'
   _db = { users: [{ id: _uid, name: 'Test', created: '2026-07-26T00:00:00.000Z' }], creds: [], subs: [], invites: [] }
   _state = state

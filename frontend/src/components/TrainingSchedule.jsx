@@ -48,7 +48,7 @@ export default function TrainingSchedule({ reminder = {}, setReminder }) {
         })}
       </>}
     </Section>
-    {custom && <Section title={t('Gym opening hours')} footer={t('An overnight opening continues into the next day. Turn a day off when the gym is closed.')}>
+    <Section title={t('Gym opening hours')} footer={t('An overnight opening continues into the next day. Turn a day off when the gym is closed.')}>
       <Row icon="clock" title={t('Use gym opening hours')}>
         <Switch checked={!!reminder.hours} aria-label={t('Use gym opening hours')} onChange={on => setReminder({
           hours: on ? Object.fromEntries(weekdays.map(day => [day, [{ from: '06:00', to: '22:00' }]])) : null,
@@ -86,6 +86,6 @@ export default function TrainingSchedule({ reminder = {}, setReminder }) {
           </div>}
         </div>
       })}
-    </Section>}
+    </Section>
   </>
 }

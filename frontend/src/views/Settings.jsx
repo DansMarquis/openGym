@@ -477,6 +477,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
     mod: id => isOn(S, id),
   }
   const on = id => isOn(S, id)
+  const setReminder = patch => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), ...patch, tz: localTZ() } })
   const mode = scheduleModeOf(S)
   const layout = ['list', 'compact', 'focus'].includes(S.workoutView) ? S.workoutView : 'cards'
   const layoutLabel = { cards: t('Cards'), list: t('List'), compact: t('Compact') }[layout]
@@ -847,6 +848,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
         <Row icon="slider" iconTint="var(--teal)" title={t('Weekly sets per muscle')} subtitle={t('The range each muscle aims for')} accessory="chevron" onClick={muscleTargetsSheet} />
         <Row icon="clipboard" iconTint="var(--green)" title={t('Load starter plan')} accessory="chevron" onClick={starterPlanSheet} />
       </Section>
+      {!MOBILE && config?.web_push === true && <TrainingSchedule reminder={S.reminder} setReminder={setReminder} />}
     </>,
 
     units: () => <>
@@ -1509,7 +1511,6 @@ function PushCard({ S, update, toast }) {
   const supported = pushSupported()
   const config = useStore(s => s.config)
   const vercelPush = config?.web_push === true
-  const setReminder = patch => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), ...patch, tz: localTZ() } })
 
   // "On" means the server holds this browser's subscription, not merely that the browser has
   // one: a row the instance dropped (dead send, rebuilt db.json) left the switch on with nothing
@@ -1578,7 +1579,6 @@ function PushCard({ S, update, toast }) {
       {on && !vercelPush && <WrappedNotifyRow S={S} update={update} />}
     </Section>
     {vercelPush && !config.scheduled_reminders && <p role="status" className="dim">{t('Configure the free QStash scheduler to receive reminders with the app closed.')}</p>}
-    {on && S.reminder?.on && vercelPush && <TrainingSchedule reminder={S.reminder} setReminder={setReminder} />}
     {on && <div style={{ marginTop: -12, marginBottom: 22 }}><Button size="sm" icon="bell" onClick={test}>{t('Send test notification')}</Button></div>}
   </>
 }

@@ -98,10 +98,10 @@ A Safari tab on iPhone is not equivalent to the installed Home Screen webapp.
 
 ## 4. Set gym hours and training times
 
-Under **Settings → Reminders**, enable **Workout day reminder**, then
-**Choose training times**. Select training days, their times and the lead time
-(0, 15, 30, 60, 120 or 180 minutes). Optionally enable **Use gym opening hours**
-and edit each day's opening/closing times. Use **Add opening period** for split
+Under **Settings → Plan & schedule**, set **Choose training times**. Select
+training days, their times and the lead time (0, 15, 30, 60, 120 or 180 minutes).
+Optionally enable **Use gym opening hours** and edit each day's opening/closing
+times. Use **Add opening period** for split
 hours such as `07:00-14:00`, `15:00-17:00`, `20:00-23:00`. Each period can be
 edited or removed separately; breaks between periods count as closed. Existing
 single-period schedules remain supported. Disable a day when the gym is closed.
@@ -111,7 +111,8 @@ opening-hour filtering off.
 Overnight hours work across weekdays, such as Monday 22:00 to Tuesday 02:00.
 A training time outside opening hours displays a warning and gets no reminder.
 Opening hours are checked at the training time, not the earlier notification
-time. With custom training times enabled, those days are explicit training
+time. On **Settings → Reminders**, enable **Workout day reminder** and
+**Push notifications** to receive these reminders. With custom training times enabled, those days are explicit training
 plans, even without a routine assigned in the weekly planner. Without custom
 times, the original planned-routine reminder uses its single reminder time.
 
@@ -146,6 +147,24 @@ overrides automatic themes. On Auto, New Year takes priority over Christmas
 on 31 December and Halloween over autumn in October. If multiple themes are
 explicitly On, list order wins. Decorations ignore taps, respect reduced motion
 and can be disabled during workouts.
+
+## Claude Desktop training plans
+
+The optional [openGym MCP server](../mcp/README.md) can read a Vercel profile
+and add training-plan routines through the API. It does not need an Anthropic API
+key or API billing; Claude Desktop runs the MCP process locally. In
+**Settings → Account → Pair the mobile app**, confirm with your current
+password, then use the five-minute code with `node mcp/scripts/pair.mjs
+https://your-app.vercel.app CODE`. Put the printed token in Claude Desktop's
+MCP server environment as `OPENGYM_TOKEN`, with `OPENGYM_REMOTE=1` and
+`OPENGYM_URL` set to the same HTTPS address. Do not set `OPENGYM_DATA` for
+remote mode.
+
+The token grants full access to the profile, not only plan creation. Treat it
+like a password and do not paste it into a chat. Claude must show a plan preview
+and get your explicit approval before it saves; existing routines are preserved.
+The weekly schedule is left alone unless you explicitly request a schedule
+replacement.
 
 ## Validation
 

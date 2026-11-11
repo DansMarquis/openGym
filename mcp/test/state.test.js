@@ -42,6 +42,33 @@ afterEach(() => { vi.unstubAllEnvs() })
 afterAll(() => { dirs.forEach(d => fs.rmSync(d, { recursive: true, force: true })) })
 
 describe('a read failure is not "you never signed in"', () => {
+  test('remote mode reads the signed-in profile through the openGym API without a local data directory', async () => {
+    vi.resetModules()
+    vi.stubEnv('OPENGYM_REMOTE', '1')
+    vi.stubEnv('OPENGYM_URL', 'https://gym.example.com')
+    vi.stubEnv('OPENGYM_TOKEN', 'test-token')
+    const calls = []
+    const fetchImpl = async (url, options) => {
+      calls.push({ url, authorization: options.headers.authorization })
+      const body = url.endsWith('/api/me')
+        ? { user: { id: 'remote-user', name: 'Remote' } }
+        : { state: { unit: 'lb', routines: [{ id: 'remote-routine', name: 'Remote routine', ex: [] }] }, rev: 4 }
+      return { status: 200, ok: true, json: async () => body }
+    }
+    const state = await import('../src/state.js')
+
+    state.init()
+    await state.refreshRemoteState({ fetchImpl })
+
+    expect(state.getUser()).toMatchObject({ id: 'remote-user', name: 'Remote' })
+    expect(state.getState()).toMatchObject({
+      unit: 'lb',
+      routines: [{ id: 'remote-routine', name: 'Remote routine' }],
+    })
+    expect(calls.map(x => new URL(x.url).pathname)).toEqual(['/api/me', '/api/data'])
+    expect(calls.every(x => x.authorization === 'Bearer test-token')).toBe(true)
+  })
+
   test('without a watcher, a state file that goes away stops being served from the cache (#653)', async () => {
     const dir = mk({ 'db.json': DB, 'state-alex.json': JSON.stringify({ unit: 'lb' }) })
     const watch = vi.spyOn(fs, 'watch').mockImplementation(() => { throw new Error('no fs.watch here') })
