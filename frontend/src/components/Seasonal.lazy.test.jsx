@@ -60,7 +60,7 @@ describe('fetched only while a theme shows', () => {
   afterEach(() => { act(() => root.unmount()); host.remove(); vi.useRealTimers(); delete document.documentElement.dataset.season; st.tour = false })
 
   it('switched off in season: nothing rendered, nothing loaded, no data-season', async () => {
-    st.S = { seasonal: { halloween: 'off' } }
+    st.S = { seasonal: { halloween: 'off', autumn: 'off' } }
     const { SeasonalLayer, SeasonDeco } = await import('./Seasonal.jsx')
     await act(async () => root.render(<><SeasonalLayer /><SeasonDeco spot="home-hero" /></>))
     expect(host.innerHTML).toBe('')
@@ -78,7 +78,7 @@ describe('fetched only while a theme shows', () => {
 
   it('out of season on Auto: the same', async () => {
     vi.setSystemTime(new Date(2026, 10, 15, 12))   // mid-November: between Halloween and Christmas
-    st.S = {}
+    st.S = { seasonal: { autumn: 'off' } }
     const { SeasonalLayer } = await import('./Seasonal.jsx')
     await act(async () => root.render(<SeasonalLayer />))
     expect(host.innerHTML).toBe('')

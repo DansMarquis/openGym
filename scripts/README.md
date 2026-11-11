@@ -21,6 +21,7 @@ want. Run them from the repository root with Node 22 unless noted.
 
 | Script | When |
 |---|---|
+| `setup-reminders.mjs` | Creates or updates the shared five-minute QStash Free schedule for the Vercel backend; needs `ORIGIN` and `QSTASH_TOKEN` in the environment (see [Vercel setup](../docs/VERCEL.md)) |
 | `build-hevy-id-map.mjs` | Regenerates `frontend/src/lib/hevy-id-map.js` after Hevy adds templates (needs a Hevy API key) |
 | `de-name-rules.mjs` | The German exercise-name rules. `frontend/src/lib/exercise-names.test.js` holds every German name to them |
 | `catalogue/migration-check.mjs` | Before a catalogue change ships: compares old and new catalogue on copies of real profiles |

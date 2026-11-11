@@ -14,10 +14,9 @@
 //   POST /api/logout          POST /api/logout/all
 //   GET  /api/data            GET  /api/data/rev       PUT  /api/data
 //
-// Deliberately NOT implemented (these need a persistent server, a real filesystem, or background
-// jobs that Vercel's serverless model can't provide): passkeys/WebAuthn, the Coach, media upload,
-// third-party integrations, the watch relay, push notifications, nudges, admin tooling, device
-// pairing. Calls to those return 501 so the frontend degrades instead of hanging.
+// Web Push and gym-time reminders use Redis plus QStash Free (docs/VERCEL.md).
+// Passkeys/WebAuthn, the Coach, media upload, third-party integrations, the watch relay, nudges,
+// admin tooling and device pairing are not implemented in this minimal backend.
 import crypto from 'node:crypto';
 import { db } from './_lib/db.js';
 import { json, readBody, pathOf, queryOf, str } from './_lib/http.js';
@@ -25,6 +24,9 @@ import {
   readSession, makeSession, sessionVersion, sessionCookie, clearCookie, publicUser,
 } from './_lib/session.js';
 import { hashPassword, verifyPassword, passwordProblem, POLICY_ERRORS } from './_lib/password.js';
+import { pushRoute, scheduledRoute, pushConfigured, schedulerConfigured } from './_lib/web-push.js';
+import { validTime, validOpeningDay } from '../frontend/src/lib/training-hours.js';
+import { motivation } from './_lib/motivation.js';
 
 const INVITE_ONLY = /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
 const ALLOW_GUEST = !/^(0|false|no|off)$/i.test(process.env.ALLOW_GUEST || '');
@@ -74,6 +76,9 @@ async function config(req, res) {
     allow_guest: ALLOW_GUEST,
     ...(PASSWORD_LOGIN ? { password_login: true } : {}),
     ...(DEFAULT_LANG ? { default_lang: DEFAULT_LANG } : {}),
+    web_push: true,
+    push_configured: pushConfigured(),
+    scheduled_reminders: schedulerConfigured(),
   });
 }
 
@@ -169,6 +174,23 @@ async function putData(req, res) {
   if (!isListOrNull(incoming.workouts) || !isListOrNull(incoming.routines)) {
     return json(res, 400, { error: 'invalid state' });
   }
+  const reminder = incoming.reminder;
+  if (reminder?.on) {
+    try { new Intl.DateTimeFormat('en', { timeZone: reminder.tz || 'UTC' }).format(); }
+    catch { return json(res, 400, { error: 'invalid reminder timezone' }); }
+    if (!reminder.tz || !validTime(reminder.time || '08:00')) return json(res, 400, { error: 'invalid reminder time or timezone' });
+    for (const map of [reminder.training, reminder.hours]) {
+      if (map != null && (typeof map !== 'object' || Array.isArray(map)
+        || Object.keys(map).some(k => !/^[0-6]$/.test(k)))) return json(res, 400, { error: 'invalid weekly schedule' });
+    }
+    if (Object.values(reminder.training || {}).some(v => !validTime(v))) return json(res, 400, { error: 'invalid training time' });
+    if (Object.values(reminder.hours || {}).some(day => !validOpeningDay(day))) {
+      return json(res, 400, { error: 'invalid gym opening hours' });
+    }
+    if (reminder.lead != null && (!Number.isInteger(reminder.lead) || reminder.lead < 0 || reminder.lead > 180)) {
+      return json(res, 400, { error: 'invalid reminder lead time' });
+    }
+  }
 
   const cur = await db.getState(user.id);
   const curRev = cur?._rev || 0;
@@ -212,6 +234,7 @@ const routes = {
   'GET /api/data': getData,
   'GET /api/data/rev': getDataRev,
   'PUT /api/data': putData,
+  'GET /api/motivation': motivation,
 };
 
 export default async function handler(req, res) {
@@ -220,6 +243,15 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
     if (!csrfOk(req)) return json(res, 403, { error: 'bad origin', code: 'csrf' });
 
+    if (req.method === 'POST' && ['/api/reminders/run', '/api/push/deliver'].includes(path)) {
+      return await scheduledRoute(req, res, path);
+    }
+    const pushMethods = {
+      '/api/push/public-key': 'GET', '/api/push/status': 'GET',
+      '/api/push/subscribe': 'POST', '/api/push/unsubscribe': 'POST', '/api/push/test': 'POST',
+      '/api/push/rest-timer': 'POST', '/api/push/rest-timer/cancel': 'POST',
+    };
+    if (pushMethods[path] === req.method) return await pushRoute(req, res, path);
     const route = routes[req.method + ' ' + path];
     if (route) return await route(req, res);
 

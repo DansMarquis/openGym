@@ -31,6 +31,9 @@
 
 ## Why openGym
 
+**This fork on Vercel:** see [Vercel setup](docs/VERCEL.md) for the Redis backend,
+free closed-app push reminders, daily motivational quotes and additional festive themes.
+
 Most workout apps keep your data on their servers, push you towards a subscription, or vanish
 when the company does. openGym runs on your own box, keeps your data in a folder you control, and
 is yours to fork. It still behaves like a modern app: installable on the home screen, passkey

@@ -1,0 +1,56 @@
+.card.daily-quote {
+  --quote-bg: #686117;
+  --quote-font: Georgia, 'Times New Roman', serif;
+  padding: 0;
+  overflow: hidden;
+  background: var(--quote-bg);
+  color: #fffaf0;
+  box-shadow: 0 3px 12px #00000014;
+}
+.daily-quote.daily-quote--emerald { --quote-bg: #005447; --quote-font: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; }
+.daily-quote.daily-quote--terracotta { --quote-bg: #9c3d1c; --quote-font: 'Avenir Next', 'Trebuchet MS', sans-serif; }
+.daily-quote.daily-quote--indigo { --quote-bg: #3e416e; --quote-font: Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif; }
+.daily-quote.daily-quote--berry { --quote-bg: #773c53; --quote-font: ui-rounded, 'Avenir Next', 'Trebuchet MS', sans-serif; }
+.daily-quote.daily-quote--ocean { --quote-bg: #215b70; --quote-font: Georgia, 'Times New Roman', serif; }
+.daily-quote-body { padding: clamp(24px, 6vw, 40px); text-align: center; }
+.daily-quote-heading {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.daily-quote-mark { display: block; width: 30px; height: 26px; margin: 20px auto 16px; }
+.daily-quote-figure { margin: 0; }
+.daily-quote-text {
+  margin: 0;
+  font-family: var(--quote-font);
+  font-size: clamp(24px, 5.5vw, 34px);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+.daily-quote--emerald .daily-quote-text { font-weight: 600; letter-spacing: .025em; }
+.daily-quote--indigo .daily-quote-text { font-style: italic; }
+.daily-quote--long .daily-quote-text { font-size: clamp(20px, 4.5vw, 26px); }
+.daily-quote-author {
+  margin-top: 24px;
+  font-family: var(--quote-font);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: .035em;
+  overflow-wrap: anywhere;
+}
+.daily-quote-footer {
+  padding: 4px 20px;
+  background: var(--surface);
+  color: var(--label-2);
+  font-size: var(--fs-caption);
+  text-align: center;
+}
+.daily-quote-footer a { display: inline-flex; align-items: center; min-height: 44px; color: var(--label-2); text-underline-offset: 3px; }
+.daily-quote-footer p { margin: 10px 0; line-height: 1.5; }
+.daily-quote-footer a:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 3px; }

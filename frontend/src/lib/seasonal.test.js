@@ -55,7 +55,7 @@ describe('the choice', () => {
   it('On shows it all year, Off never', () => {
     expect(themeOn({ seasonal: { halloween: 'on' } }, 'halloween', may)).toBe(true)
     expect(themeOn({ seasonal: { halloween: 'off' } }, 'halloween', oct)).toBe(false)
-    expect(activeSeason({ seasonal: { halloween: 'off' } }, oct)).toBe(null)
+    expect(activeSeason({ seasonal: { halloween: 'off' } }, oct)).toBe('autumn')
     expect(activeSeason({}, oct)).toBe('halloween')
   })
   it('the colours stand in for the accent only while the theme shows, and only when chosen', () => {
@@ -72,7 +72,7 @@ describe('during workouts', () => {
     expect(seasonInWorkout({}, oct)).toBe(true)
     expect(seasonInWorkout({ seasonal: { halloweenWorkout: false } }, oct)).toBe(false)
     expect(seasonInWorkout({}, may)).toBe(false)
-    expect(seasonInWorkout({ seasonal: { halloween: 'off' } }, oct)).toBe(false)
+    expect(seasonInWorkout({ seasonal: { halloween: 'off', autumn: 'off' } }, oct)).toBe(false)
   })
 })
 
@@ -131,15 +131,40 @@ describe('the Christmas window', () => {
     }
   })
 
-  it('takes over from Halloween with nothing in between, and the two never overlap', () => {
+  it('keeps Halloween and Christmas separate, with autumn and New Year between them', () => {
     for (let m = 1; m <= 12; m++) for (const d of [1, 15, 28]) {
-      const on = THEMES.filter(th => inSeason(th, local(2026, m, d)))
+      const on = THEMES.filter(th => ['halloween', 'christmas'].includes(th.id) && inSeason(th, local(2026, m, d)))
       expect(on.length, `${m}/${d}`).toBeLessThanOrEqual(1)
     }
     expect(activeSeason({}, local(2026, 10, 31, 23, 59))).toBe('halloween')
-    expect(activeSeason({}, local(2026, 11, 15))).toBe(null)
+    expect(activeSeason({}, local(2026, 11, 15))).toBe('autumn')
     expect(activeSeason({}, local(2026, 12, 1, 0, 0))).toBe('christmas')
-    expect(activeSeason({}, local(2027, 1, 1, 0, 0))).toBe(null)
+    expect(activeSeason({}, local(2027, 1, 1, 0, 0))).toBe('newyear')
+  })
+
+  describe('additional festive themes', () => {
+    it('shows Santos Populares throughout June', () => {
+      expect(activeSeason({}, local(2026, 6, 1))).toBe('santos')
+      expect(inSeason('santos', local(2026, 6, 30))).toBe(true)
+      expect(inSeason('santos', local(2026, 7, 1))).toBe(false)
+    })
+
+    it('gives Halloween priority over autumn and an explicit choice priority over Auto', () => {
+      expect(activeSeason({}, local(2026, 9, 22))).toBe('autumn')
+      expect(activeSeason({}, local(2026, 10, 25))).toBe('halloween')
+      expect(activeSeason({ seasonal: { santos: 'on' } }, local(2026, 10, 25))).toBe('santos')
+      expect(activeSeason({}, local(2026, 12, 31))).toBe('newyear')
+      expect(inSeason('newyear', local(2027, 1, 7))).toBe(false)
+    })
+
+    it('moves Carnival with Easter, from Saturday through Tuesday', () => {
+      expect(inSeason('carnival', local(2026, 2, 13))).toBe(false)
+      expect(inSeason('carnival', local(2026, 2, 14))).toBe(true)
+      expect(inSeason('carnival', local(2026, 2, 17))).toBe(true)
+      expect(inSeason('carnival', local(2026, 2, 18))).toBe(false)
+      expect(inSeason('carnival', local(2027, 2, 9))).toBe(true)
+      expect(inSeason('carnival', local(2028, 2, 29))).toBe(true)
+    })
   })
 
   it('Auto, On and Off, and the festive colours only when chosen', () => {

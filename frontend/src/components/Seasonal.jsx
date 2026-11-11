@@ -11,6 +11,10 @@ import { useTourRunning } from '../lib/tour.js'
 const LOADERS = {
   halloween: () => import('../seasonal/halloween.jsx'),
   christmas: () => import('../seasonal/christmas.jsx'),
+  santos: () => import('../seasonal/festivals.jsx'),
+  autumn: () => import('../seasonal/festivals.jsx'),
+  newyear: () => import('../seasonal/festivals.jsx'),
+  carnival: () => import('../seasonal/festivals.jsx'),
 }
 const mods = {}
 const modOf = id => (mods[id] ||= {
@@ -43,7 +47,7 @@ export function SeasonalLayer({ hidden = false }) {
   }, [id])
   if (!id || !LOADERS[id]) return null
   const { Layer } = modOf(id)
-  return <Suspense fallback={null}><Layer hidden={hidden} fresh={firstVisible} workout={hidden && inWorkout} /></Suspense>
+  return <Suspense fallback={null}><Layer theme={id} hidden={hidden} fresh={firstVisible} workout={hidden && inWorkout} /></Suspense>
 }
 
 /** One piece of decoration in a view: `spot` names where ('home-hero', 'home-streak', ...).
@@ -55,7 +59,7 @@ export function SeasonDeco({ spot, workout = false }) {
   const id = workout && !inWorkout ? null : season
   if (!id || !LOADERS[id]) return null
   const { Deco } = modOf(id)
-  return <Suspense fallback={null}><Deco spot={spot} /></Suspense>
+  return <Suspense fallback={null}><Deco theme={id} spot={spot} /></Suspense>
 }
 
 /** Opens something of a theme's from outside it (Settings → Seasonal themes → Advent calendar):

@@ -27,6 +27,7 @@ import { muscleTargetsSheet } from '../components/WeeklySets.jsx'
 import { aboutYouSheet } from '../components/StrengthLevel.jsx'
 import { api, webauthnOK, passkeyRegister, passkeyError, IS_ANDROID } from '../lib/api.js'
 import { pushSupported, enablePush, disablePush, sendTestPush, syncPushSubscription } from '../lib/push.js'
+import TrainingSchedule from '../components/TrainingSchedule.jsx'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, tn, LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, baseLang, dateLocale } from '../lib/i18n.js'
 import { effectiveLang } from '../lib/default-lang.js'
@@ -466,6 +467,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
     sound: !!S.sound, playOnSilent: playOnSilentSupported(), canVibrate, vibrate: S.vibrate !== false,
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
     pushOK: !MOBILE && pushSupported(), reminderOn: !!S.reminder?.on, nudge: !!S.reminder?.nudge,
+    vercelPush: config?.web_push === true,
     nfc: nfcOK, gymReminder,
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID, desktopWeb: !IS_ANDROID && !APPLE_UA,
     integrations: config?.integrations?.providers || [],
@@ -1505,6 +1507,9 @@ function PushCard({ S, update, toast }) {
   const [on, setOn] = useState(false)
   const [busy, setBusy] = useState(false)
   const supported = pushSupported()
+  const config = useStore(s => s.config)
+  const vercelPush = config?.web_push === true
+  const setReminder = patch => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), ...patch, tz: localTZ() } })
 
   // "On" means the server holds this browser's subscription, not merely that the browser has
   // one: a row the instance dropped (dead send, rebuilt db.json) left the switch on with nothing
@@ -1537,7 +1542,7 @@ function PushCard({ S, update, toast }) {
   }
 
   if (!supported) return (
-    <Section title={t('Notifications')}>
+    <Section title={t('Notifications')} footer={t('In Safari: Share → Add to Home Screen')}>
       <Row icon="bellSlash" iconTint="var(--grey)" title={t('Not supported in this browser.')} />
     </Section>
   )
@@ -1546,9 +1551,11 @@ function PushCard({ S, update, toast }) {
     <Section
       title={t('Notifications')}
       footer={on && S.reminder?.on
-        ? t("Only sent on days you have a routine planned and haven't logged a workout yet.") +
+        ? (vercelPush && S.reminder?.training
+          ? t('Reminders can arrive a few minutes late. Your saved timezone is used even when the app is closed.')
+          : t("Only sent on days you have a routine planned and haven't logged a workout yet.")) +
           (S.reminder?.tz ? ' ' + t('Timezone: {0} (auto-detected, updates if you travel).', S.reminder.tz) : '') +
-          nudgeNote(S)
+          (vercelPush ? '' : nudgeNote(S))
         : null}
     >
       <Row icon="bell" iconTint="var(--red)" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if openGym is closed.')}>
@@ -1559,17 +1566,19 @@ function PushCard({ S, update, toast }) {
           <Switch checked={!!S.reminder?.on} onChange={() => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), on: !s.reminder?.on, tz: localTZ() } })} />
         </Row>
       )}
-      {on && S.reminder?.on && (
+      {on && S.reminder?.on && !(vercelPush && S.reminder?.training) && (
         <Row icon="clock" iconTint="var(--purple)" title={t('Reminder time')}>
           <input type="time" className="timef" value={S.reminder?.time || DEF.reminder.time}
             onChange={e => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), time: e.target.value, tz: localTZ() } })} />
         </Row>
       )}
-      {on && S.reminder?.on && (
+      {on && S.reminder?.on && !vercelPush && (
         <NudgeRows S={S} setReminder={patch => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), ...patch, tz: localTZ() } })} />
       )}
-      {on && <WrappedNotifyRow S={S} update={update} />}
+      {on && !vercelPush && <WrappedNotifyRow S={S} update={update} />}
     </Section>
+    {vercelPush && !config.scheduled_reminders && <p role="status" className="dim">{t('Configure the free QStash scheduler to receive reminders with the app closed.')}</p>}
+    {on && S.reminder?.on && vercelPush && <TrainingSchedule reminder={S.reminder} setReminder={setReminder} />}
     {on && <div style={{ marginTop: -12, marginBottom: 22 }}><Button size="sm" icon="bell" onClick={test}>{t('Send test notification')}</Button></div>}
   </>
 }

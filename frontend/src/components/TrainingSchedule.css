@@ -1,0 +1,7 @@
+.gym-hours-periods { padding: 0 16px 12px; }
+.gym-hours-inputs { display: flex; gap: 6px; align-items: center; }
+.gym-hours-inputs .timef { flex: 1 1 0; width: 0; min-height: 44px; }
+.gym-hours-inputs .btn { flex: none; }
+.gym-hours-period + .gym-hours-period { margin-top: 6px; }
+.gym-hours-periods > .btn { margin-top: 6px; }
+.gym-hours-error { color: var(--red); font-size: var(--fs-footnote); margin: 4px 0 8px; }

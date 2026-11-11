@@ -30,6 +30,7 @@ import { WrappedHomeCard } from '../components/WrappedEntry.jsx'
 import RecoveryHint from '../components/RecoveryHint.jsx'
 import { ChallengesCard } from '../components/Challenges.jsx'
 import { isOn } from '../lib/modules.js'
+import DailyQuote from '../components/DailyQuote.jsx'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -198,7 +199,7 @@ export default function Home() {
     <SeasonDeco spot="home-advent" />
 
     {/* December and January: the year in openGym is ready (lib/wrapped.js homeCardYear). */}
-    {on('motivation') && <WrappedHomeCard S={S} />}
+    {on('motivation') && <><DailyQuote /><WrappedHomeCard S={S} /></>}
 
     {/* What has rested and what is still recovering, kindly (lib/recovery-hint.js). */}
     {on('health') && <RecoveryHint S={S} />}
